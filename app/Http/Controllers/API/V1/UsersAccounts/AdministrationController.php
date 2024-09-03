@@ -74,7 +74,7 @@ class AdministrationController extends Controller
             endif;
 
 
-
+            
 
             if(empty($request->role_id)):
                 return response()->json(
@@ -146,7 +146,7 @@ class AdministrationController extends Controller
                         $default_text
                     ));
 
-
+                    
                     return response()->json(
                         [
                             'status' => 'success',
@@ -189,6 +189,8 @@ class AdministrationController extends Controller
             );
         }
     }
+
+    
 
     /**
      * Display the specified resource.
@@ -366,7 +368,7 @@ class AdministrationController extends Controller
     }
 
 
-
+    
 
     public function enable_or_disable_account(string $slug)
     {

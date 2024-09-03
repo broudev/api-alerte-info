@@ -20,7 +20,7 @@ class FlashController extends Controller
         $this->middleware('auth:api');
     }
 
-
+    
     public function index()
     {
         try {
@@ -374,13 +374,14 @@ class FlashController extends Controller
         return $date_debut;
     }
 
-
+    
     protected function get_date_fin()
     {
         $current_date = new DateTime();
         $date_fin = $current_date->format('Y-m-d');
         return $date_fin;
     }
+
 
 
     public function push_flash($slug)

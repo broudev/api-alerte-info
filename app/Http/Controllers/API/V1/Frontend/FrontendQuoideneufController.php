@@ -68,6 +68,8 @@ class FrontendQuoideneufController extends Controller
             );
         }
     }
+
+
     public function get_frontend_politique_article(){
         try {
             return DB::table('articles_models')
@@ -393,9 +395,69 @@ class FrontendQuoideneufController extends Controller
 
     }
 
+    public function like_frontend_news(Request $request)
+    {
+
+        try {
+            $visitor_ip = $request->ip();
+
+            $news_slug = $request->slug;
 
 
+            $is_disliked = DB::table('dislike_models')->where('news_slug', $news_slug)
+                ->where('ip_address', $visitor_ip)
+                ->first();
+            if($is_disliked != null):
+                return response()->json([
+                    'code' => 201,
+                    'status' => 'info',
+                    'message' => "Vous avez déjà donner votre approbation à cet article."
+                ]);
+            else:
 
+                $is_liked = DB::table('like_models')->where('news_slug', $news_slug)
+                    ->where('ip_address', $visitor_ip)
+                    ->first();
+
+                if ($is_liked != null) :
+                    DB::table('like_models')->where('news_slug', $news_slug)
+                        ->where('ip_address', $visitor_ip)->delete();
+
+
+                    $this->set_counter($news_slug);
+
+                    return response()->json([
+                        'code' => 200,
+                        'status' => 'succès',
+                        'message' => "Votre approbation a été retirée de l'article."
+                    ]);
+                else :
+                    $new_like = new LikeModels();
+
+                    $new_like->news_slug = $news_slug;
+                    $new_like->ip_address = $visitor_ip;
+
+                    if ($new_like->save()) :
+
+                        $this->set_counter($news_slug);
+                        return response()->json([
+                            'code' => 200,
+                            'status' => 'succès',
+                            'message' => "Votre approbation a été enregistrée."
+                        ]);
+                    endif;
+                endif;
+            endif;
+        } catch (\Throwable $e) {
+            return response()->json(
+                [
+                    'status' => 'error',
+                    'code' => 300,
+                    'message' => $e->getMessage(),
+                ]
+            );
+        }
+    }
     protected function set_counter($news_slug) {
 
         $likes_counter = DB::table('like_models')
@@ -415,6 +477,66 @@ class FrontendQuoideneufController extends Controller
     }
 
 
+    public function dislike_frontend_news(Request $request)
+    {
+        try {
+            $visitor_ip = $request->ip();
+
+            $news_slug = $request->slug;
+
+            $is_liked = DB::table('like_models')->where('news_slug', $news_slug)
+                    ->where('ip_address', $visitor_ip)
+                    ->first();
+            if($is_liked != null):
+                return response()->json([
+                    'code' => 201,
+                    'status' => 'info',
+                    'message' => "Vous avez déjà donner votre approbation à cet article."
+                ]);
+            else:
+                $is_liked = DB::table('dislike_models')->where('news_slug', $news_slug)
+                    ->where('ip_address', $visitor_ip)
+                    ->first();
+
+                if ($is_liked != null) :
+                    DB::table('dislike_models')->where('news_slug', $news_slug)
+                        ->where('ip_address', $visitor_ip)->delete();
+
+
+                        $this->set_discounter($news_slug);
+
+                    return response()->json([
+                        'code' => 200,
+                        'status' => 'succès',
+                        'message' => "Votre, approbation a été retirée de l'article."
+                    ]);
+                else :
+                    $new_dislike = new DislikeModels();
+
+                    $new_dislike->news_slug = $news_slug;
+                    $new_dislike->ip_address = $visitor_ip;
+
+                    if ($new_dislike->save()) :
+
+                        $this->set_counter($news_slug);
+                        return response()->json([
+                            'code' => 200,
+                            'status' => 'succès',
+                            'message' => "Merci pour votre approbation sur l'article"
+                        ]);
+                    endif;
+                endif;
+            endif;
+        } catch (\Throwable $e) {
+            return response()->json(
+                [
+                    'status' => 'error',
+                    'code' => 300,
+                    'message' => $e->getMessage(),
+                ]
+            );
+        }
+    }
 
 
     protected function set_discounter($news_slug) {

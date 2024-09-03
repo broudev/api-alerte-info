@@ -9,10 +9,6 @@ class ForfaitsAbonnementsMobileModels extends Model
 {
     use HasFactory;
 
-    protected $fileable = [
-        'forfait_libelle',
-        'montant_forfait',
-        'duree_forfait',
-        'slug'
+    protected $guarded = [
     ];
 }

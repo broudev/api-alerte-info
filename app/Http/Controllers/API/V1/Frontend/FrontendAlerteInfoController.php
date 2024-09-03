@@ -9,9 +9,6 @@ use App\Http\Controllers\Controller;
 
 class FrontendAlerteInfoController extends Controller
 {
-
-
-
     public function get_alerteinfo_home_page_data()
     {
         try {
@@ -24,7 +21,7 @@ class FrontendAlerteInfoController extends Controller
             //->whereDate('depeche_models.created_at','>=', Carbon::now()->subDay())
             ->where('depeche_models.status',1)
             ->orderBy('depeche_models.id', 'desc')
-            ->limit(18)
+            ->limit(20)
             ->get();
 
             $event_keyword_data = DB::table('events_key_words_models')->get();
@@ -38,7 +35,7 @@ class FrontendAlerteInfoController extends Controller
             //->whereDate('depeche_models.created_at','>=', Carbon::now()->subHours(48))
             ->where('depeche_models.status',1)
             ->orderByDesc('depeche_models.id')
-            ->limit(8)
+            ->limit(9)
             ->get();
 
             $politique_news_data = DB::table('depeche_models')
@@ -91,6 +88,7 @@ class FrontendAlerteInfoController extends Controller
             ->get();
 
 
+            
             $flash_data = DB::table('depeche_models')
             ->where('depeche_models.status',1)
             //->whereDate('depeche_models.created_at','>=', Carbon::now()->subDay())
@@ -99,17 +97,18 @@ class FrontendAlerteInfoController extends Controller
             ->limit(8)
             ->get();
 
+            $banner_728X90 = DB::table('banner_models')->where('libelle',"728X90")->where('status', 1)->orderByDesc('id')->get();
+            $banner_1920X309 = DB::table('banner_models')->where('libelle',"1920X309")->where('status', 1)->orderByDesc('id')->first();
+            $banner_1200X1500 = DB::table('banner_models')->where('libelle',"1200X1500")->where('status', 1)->orderByDesc('id')->first();
+
+
+
             $archive_data = DB::table('depeche_models')
             ->select(DB::raw('count(id) as `data`'), DB::raw("created_at as new_date"), DB::raw('YEAR(created_at) year, MONTH(created_at) month'))
             ->groupby('year', 'month')
             ->limit(12)
             ->orderByDesc('created_at')
             ->get();
-
-
-            $banner_728X90 = DB::table('banner_models')->where('libelle',"728X90")->get();
-            $banner_1920X309 = DB::table('banner_models')->where('libelle',"1920X309")->get();
-            $banner_1200X1500 = DB::table('banner_models')->where('libelle',"1200X1500")->get();
 
             return [
                 'fil_actualite_data' => $fil_actualite_data,
@@ -124,8 +123,8 @@ class FrontendAlerteInfoController extends Controller
                 'banner_1920X309' => $banner_1920X309,
                 'banner_1200X1500' => $banner_1200X1500,
                 'archive_data' => $archive_data,
-
             ];
+
 
 
 
@@ -140,22 +139,33 @@ class FrontendAlerteInfoController extends Controller
         }
     }
 
+    
 
-
-
-    // get depeche details from API by slug
+    // get depeche detail
 
     public function get_alerteinfo_depeche_details_by_slug($slug)
     {
         try {
+
+            (int) $old_counter = DB::table('depeche_models')->where('slug', $slug)
+                    ->value('counter');
+
+            $new_counter =  $old_counter+1;
+
+                //return $new_counter;
+
+            DB::table('depeche_models')->where('slug', $slug)->update(['counter' => $new_counter]);
+
+
             return DB::table('depeche_models')
-                ->join('countries_models', 'depeche_models.pays_id', '=', 'countries_models.id')
-                ->join('rubrique_models', 'depeche_models.rubrique_id', '=', 'rubrique_models.id')
-                ->join('genre_journalistique_models', 'depeche_models.genre_id', '=', 'genre_journalistique_models.id')
-                ->select('countries_models.pays','countries_models.flag','rubrique_models.rubrique','genre_journalistique_models.genre','depeche_models.*')
-                ->where('depeche_models.slug', $slug)
-                ->where('depeche_models.status',1)
-                ->first();
+            ->join('countries_models', 'depeche_models.pays_id', '=', 'countries_models.id')
+            ->join('rubrique_models', 'depeche_models.rubrique_id', '=', 'rubrique_models.id')
+            ->join('genre_journalistique_models', 'depeche_models.genre_id', '=', 'genre_journalistique_models.id')
+            ->select('countries_models.pays','countries_models.flag','rubrique_models.rubrique','genre_journalistique_models.genre','depeche_models.*')
+            ->where('depeche_models.slug', $slug)
+            ->where('depeche_models.status',1)
+            ->first();
+
         } catch (\Throwable $th) {
             return response()->json(
                 [
@@ -167,7 +177,6 @@ class FrontendAlerteInfoController extends Controller
         }
     }
 
-
     // Get all archives depeche
     public function get_alerteinfo_depeche_archives()
     {
@@ -175,7 +184,6 @@ class FrontendAlerteInfoController extends Controller
             return DB::table('depeche_models')
                 ->select(DB::raw('count(id) as `data`'), DB::raw("created_at as new_date"), DB::raw('YEAR(created_at) year, MONTH(created_at) month'))
                 ->groupby('year', 'month')
-                ->limit(12)
                 ->orderByDesc('created_at')
                 ->get();
 
@@ -190,7 +198,7 @@ class FrontendAlerteInfoController extends Controller
         }
     }
 
-    public function get_alerteinfo_depeche_archives_data($mounth,$year)
+    public function get_alerteinfo_depeche_archives_data_by_mounth_and_year($mounth,$year)
     {
         try {
             return DB::table('depeche_models')
@@ -198,10 +206,10 @@ class FrontendAlerteInfoController extends Controller
             ->join('rubrique_models', 'depeche_models.rubrique_id', '=', 'rubrique_models.id')
             ->join('genre_journalistique_models', 'depeche_models.genre_id', '=', 'genre_journalistique_models.id')
             ->select('countries_models.pays','countries_models.flag','rubrique_models.rubrique','genre_journalistique_models.genre','depeche_models.*')
-            ->whereMonth('articles_models.created_at', $mounth)
+            ->whereMonth('depeche_models.created_at', $mounth)
             ->where('depeche_models.status',1)
-            ->whereYear('articles_models.created_at', $year)
-            ->orderByDesc('articles_models.created_at')
+            ->whereYear('depeche_models.created_at', $year)
+            ->orderByDesc('depeche_models.created_at')
             ->get();
 
         } catch (\Throwable $e) {
@@ -215,136 +223,5 @@ class FrontendAlerteInfoController extends Controller
         }
     }
 
-    // get full depeches by rubrique
 
-    public function get_alerteinfo_depeche_by_rubrique($rubrique)
-    {
-        try {
-            return DB::table('depeche_models')
-            ->join('countries_models', 'depeche_models.pays_id', '=', 'countries_models.id')
-            ->join('rubrique_models', 'depeche_models.rubrique_id', '=', 'rubrique_models.id')
-            ->join('genre_journalistique_models', 'depeche_models.genre_id', '=', 'genre_journalistique_models.id')
-            ->select('countries_models.pays','countries_models.flag','rubrique_models.rubrique','genre_journalistique_models.genre','depeche_models.*')
-            ->where('depeche_models.rubrique_id', $rubrique)
-            ->orderBy('depeche_models.id', 'desc')
-            ->limit(100)
-            ->get();
-        } catch (\Throwable $th) {
-            return response()->json(
-                [
-                    'status' => 'error',
-                    'code' => 500,
-                    'message' => $th->getMessage(),
-                ]
-            );
-        }
-    }
-
-
-    // get full depeches by country
-    public function get_full_depeche_by_country($country)
-    {
-        try {
-            $country_to_array = implode(',', $country);
-
-            return DB::table('depeche_models')
-                ->join('countries_models', 'depeche_models.pays_id', '=', 'countries_models.id')
-                ->join('rubrique_models', 'depeche_models.rubrique_id', '=', 'rubrique_models.id')
-                ->join('genre_journalistique_models', 'depeche_models.genre_id', '=', 'genre_journalistique_models.id')
-                ->select('countries_models.pays','countries_models.flag','rubrique_models.rubrique','genre_journalistique_models.genre','depeche_models.*')
-                ->where('depeche_models.pays_id', $country_to_array)
-                ->orderBy('depeche_models.id', 'desc')
-                ->limit(100)
-                ->get();
-        } catch (\Throwable $th) {
-            return response()->json(
-                [
-                    'status' => 'error',
-                    'code' => 500,
-                    'message' => $th->getMessage(),
-                ]
-            );
-        }
-    }
-
-
-
-
-    // get full flashes
-    public function get_full_flashes()
-    {
-        // TODO: Implement fetching full flashes from API and returning it
-        try {
-            return DB::table('flashes_models')
-                ->join('countries_models', 'flashes_models.pays_id', '=', 'countries_models.id')
-                ->join('rubrique_models', 'flashes_models.rubrique_id', '=', 'rubrique_models.id')
-                ->select(
-                    'countries_models.pays',
-                    'countries_models.flag',
-                    'rubrique_models.rubrique',
-                    'flashes_models.*'
-                )
-                ->orderBy('flashes_models.id', 'desc')
-                ->limit(100)
-                ->get();
-        } catch (\Throwable $th) {
-            return response()->json(
-                [
-                    'status' => 'error',
-                    'code' => 500,
-                    'message' => $th->getMessage(),
-                ]
-            );
-        }
-    }
-
-
-    // get full recents flashes
-
-    public function get_full_recents_flashes()
-    {
-        try {
-            return DB::table('flashes_models')
-                ->join('countries_models', 'flashes_models.pays_id', '=', 'countries_models.id')
-                ->join('rubrique_models', 'flashes_models.rubrique_id', '=', 'rubrique_models.id')
-                ->select(
-                    'countries_models.pays',
-                    'countries_models.flag',
-                    'rubrique_models.rubrique',
-                    'flashes_models.*'
-                )
-                ->where('flashes_models.status', 1)
-                ->orderBy('flashes_models.id', 'desc')
-                ->limit(10)
-                ->get();
-        } catch (\Throwable $th) {
-            return response()->json(
-                [
-                    'status' => 'error',
-                    'code' => 500,
-                    'message' => $th->getMessage(),
-                ]
-            );
-        }
-    }
-
-
-    //  ++++++++++++++++++++++++++++++++++++++ BANNERS +++++++++++++++
-    public function get_frontend_728X90()
-    {
-        try {
-            return DB::table('banner_models')->where('libelle', "728X90")
-                ->where('status', 1)
-                ->first();
-        } catch (\Throwable $e) {
-            return response()->json(
-                [
-                    'status' => 'error',
-                    'code' => 302,
-                    'message' => $e->getMessage()
-                ]
-            );
-        }
-
-    }
 }

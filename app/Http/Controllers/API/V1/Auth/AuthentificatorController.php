@@ -108,7 +108,7 @@ class AuthentificatorController extends Controller
                         'users' => $users_is_logged,
                         'status' => "succès",
                         'token_type' => 'Bearer',
-                        'expires_in' => auth()->factory()->getTTL(),
+                        'expires_in' => auth()->factory()->getTTL() * 24*60,
                         'message' => 'Vous êtes connecté 💚!'
                     ]
                 );
@@ -125,7 +125,6 @@ class AuthentificatorController extends Controller
             );
         }
     }
-
 
 
     public function authentificated_abonne(Request $request)
@@ -191,6 +190,7 @@ class AuthentificatorController extends Controller
             }
 
 
+            
             // get Abonné logged data
             $users_is_logged = DB::table('abonnes_mobile_models')
             ->join('users', 'abonnes_mobile_models.user_id', '=', 'users.id')
@@ -198,9 +198,9 @@ class AuthentificatorController extends Controller
                 'users.email',
                 'users.connected',
                 'users.user_type',
-                'abonnes_mobile_models.abonne_fname',
-                'abonnes_mobile_models.abonne_lname',
-                'abonnes_mobile_models.abonne_phone_number',
+                'abonnes_mobile_models.abonne_fname as nom',
+                'abonnes_mobile_models.abonne_lname as prenom',
+                'abonnes_mobile_models.abonne_phone_number as contact',
                 'abonnes_mobile_models.type_abonne',
                 'abonnes_mobile_models.id  as account_id',
                 'abonnes_mobile_models.created_at',
@@ -234,6 +234,8 @@ class AuthentificatorController extends Controller
         }
 
     }
+
+    
 
 
     public function checkUserAccount(Request $user)
@@ -408,7 +410,7 @@ class AuthentificatorController extends Controller
                 ]
             );
         }
-
+        
 
     }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\API\V1\Transactions\NotifyController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\WellcomeController;
 use App\Http\Controllers\API\V1\RoleController;
@@ -12,29 +13,28 @@ use App\Http\Controllers\API\V1\Auth\AuthentificatorController;
 use App\Http\Controllers\API\V1\Quoideneufs\ArticlesController;
 use App\Http\Controllers\API\V1\Redactions\CountriesController;
 use App\Http\Controllers\API\V1\Redactions\RubriquesController;
+use App\Http\Controllers\API\V1\Frontend\FrontendMobileController;
 use App\Http\Controllers\API\V1\DiffusionSms\CarnetAdressController;
-
 use App\Http\Controllers\API\V1\Frontend\FrontendAlerteInfoController;
 use App\Http\Controllers\API\V1\Frontend\FrontendQuoideneufController;
 use App\Http\Controllers\API\V1\DiffusionSms\GestionOperatorController;
 use App\Http\Controllers\API\V1\UsersAccounts\AdministrationController;
 use App\Http\Controllers\API\V1\EventsKeyWords\EventsKeyWordsController;
-
-
+use App\Http\Controllers\API\V1\Abonnements\ForfaitsAbonnementController;
 use App\Http\Controllers\API\V1\Statistiques\AdminStatistiquesController;
-
-
-
 use App\Http\Controllers\API\V1\Quoideneufs\GenreJournalistiqueController;
 use App\Http\Controllers\API\V1\Quoideneufs\RubriquesQuoideneufController;
 
 Route::get('/welcome', [WellcomeController::class, 'index']);
 
 
+
 Route::post('/login_admin', [AuthentificatorController::class, 'admin_authentificator']);
 //AUTHENTIFICATED ABONNE
 Route::post('/login_mobile_abonne', [AuthentificatorController::class, 'authentificated_abonne']);
 
+
+// ADMINISTRATION
 Route::post('/check_user_account', [AuthentificatorController::class, 'checkUserAccount']);
 Route::post('/update_user_password', [AuthentificatorController::class, 'updateUserPassword']);
 
@@ -46,12 +46,14 @@ Route::post('/check_matricule', [AuthentificatorController::class, 'check_matric
 Route::get('/un_authorised', [AuthentificatorController::class, 'un_authorised'])->name('un_authorised');
 
 
+
 /**
  * =========================== START QUOIDENEUF ===============================
  * ++++++++++++++++++++++++++++++ ********************* +++++++++++++++++++++++++++++++++++++++++++++
 */
 
 // ====== RUBRIQUE QUOIDENEUF 💚====================
+
 Route::group(
     [
         'middleware' => 'api',
@@ -73,6 +75,7 @@ Route::group(
 );
 
 // ====== GENRE JOURNALISTIQUE QUOIDENEUF 💚====================
+
 Route::group(
     [
         'middleware' => 'api',
@@ -91,6 +94,7 @@ Route::group(
 );
 
 //======= ARTICLES QUOIDENEUF  💚====================
+
 Route::group(
     [
         'middleware' => 'api',
@@ -100,25 +104,11 @@ Route::group(
         // ARTICLES QUOIDENEUF 💚
         Route::controller(ArticlesController::class)->group(function () {
 
-            // FRONTEND
-            Route::get('/get_home_news', 'get_frontend_home_article');
-
-            Route::get('/get_frontend_une_news_article', 'get_frontend_une_news_article');
-
-
-            Route::post('/view_qdn_news/{slug}', 'detail_article_quoideneuf');
-            Route::get('/get_customer_news/{customer}', 'get_customer_news');
-            Route::get('/get_article_with_rubrique/{slug}', 'get_article_with_rubrique');
-            Route::get('/get_article_by_rubrique/{rubrique}', 'get_article_by_rubrique');
-            Route::get('/get_flash_info', 'get_flash_info');
-            Route::get('/get_articles_archive', 'get_articles_archive');
-            Route::get('/get_archive_data/{mounth}/{year}', 'get_archive_data');
-            Route::get('/get_similar_article/{rubrique_id}/{slug}', 'get_similar_article');
-            Route::get('/get_popular_article', 'get_popular_article');
 
             // BACKEND
             Route::get('/get_articles', 'index');
             Route::get('/get_recente_articles', 'get_recente_article');
+            Route::get('/get_customer_news/{customer}', 'get_customer_news');
             Route::get('/single_articles/{slug}', 'detail_article_on_backend');
             Route::get('/get_articles_hebdo_statistique', 'get_article_hebdo_statistique');
             Route::post('/add_articles', 'store');
@@ -529,6 +519,25 @@ Route::group(
     }
 );
 
+
+
+// ==================================== FORFAITS 💚====================
+Route::group(
+    [
+        'middleware' => 'api',
+        'namespace' => 'App\Http\Controllers\API\V1\Abonnements',
+    ],
+    function ($router)
+    {
+        // FORFAITS 💚
+        Route::get('/get_forfaits', [ForfaitsAbonnementController::class, 'index']);
+        Route::post('/add_forfaits', [ForfaitsAbonnementController::class, 'store']);
+        Route::get('/edit_forfaits/{slug}', [ForfaitsAbonnementController::class, 'edit']);
+        Route::post('/update_forfaits/{slug}', [ForfaitsAbonnementController::class, 'update']);
+        Route::get('/destroy_forfaits/{slug}', [ForfaitsAbonnementController::class, 'destroy']);
+
+    }
+);
 /**
  *
  *
@@ -636,6 +645,7 @@ Route::group(
 
             // FRONTEND
 
+
             Route::get('/get_frontend_news_rubrique',  'get_frontend_news_rubriques');
             Route::get('/get_frontend_others_rubrique_quoideneuf',  'get_frontend_other_rubrique');
 
@@ -665,12 +675,20 @@ Route::group(
             Route::get('/get_frontend_banner_728X90', 'get_frontend_728X90');
             Route::get('/get_frontend_banner_1920X309', 'get_frontend_1920X309');
             Route::get('/get_frontend_banner_1200X1500', 'get_frontend_1200X1500');
+
+            // Route::any('/notify', [App\Http\Controllers\API\V1\Transactions\NotifyController::class, 'notify'])->name('paiement-notify');
+
+
         });
     }
 );
 
 
 // ===========================END FRONTEND ARTICLES QUOIDENEUF ========================
+
+
+
+
 
 //======= FRONTEND ARTICLES ARLERTE INFO  💚====================
 Route::group(
@@ -684,19 +702,51 @@ Route::group(
 
             // FRONTEND
 
-            Route::get('/get_mobile_recents_depeches_and_flashes,  get_mobile_recents_depeches_and_flashes');
+            Route::get('/get_alerteinfo_home_page_data', 'get_alerteinfo_home_page_data');
+            // get alerte-info
+            Route::get('/get_alerteinfo_depeche_details_by_slug/{item_slug}',  'get_alerteinfo_depeche_details_by_slug');
+            // get alerte-info depeche archives
+            Route::get('/get_alerteinfo_depeche_archives',  'get_alerteinfo_depeche_archives');
+            // get alerte-info depeche archives data
+            Route::get('/get_alerteinfo_depeche_archives_data_by_mounth_and_year/{mounth}/{year}', 'get_alerteinfo_depeche_archives_data_by_mounth_and_year');
+            // get alerte-info depeche by country
+            Route::get('/get_alerteinfo_depeche_by_country/{country_id}', 'get_alerteinfo_depeche_by_country');
+            // get alerte-info depeche by rubrique
+            Route::get('/get_alerteinfo_depeche_by_rubrique/{rubrique_id}', 'get_alerteinfo_depeche_by_rubrique');
 
 
-            Route::get('/get_mobile_depeche',  'get_mobile_depeches');
-            Route::get('/get_mobile_depeche_details_by_slug/{item_slug}',  'get_depeche_details_by_slug');
+
+        });
+    }
+);
 
 
+
+//======= FRONTEND MOBILE CONTROLLER  💚====================
+Route::group(
+    [
+        'middleware' => 'api',
+        'namespace' => 'App\Http\Controllers\API\V1\Frontend',
+    ],
+    function ($router) {
+        // MOBILE CONTROLLER 💚
+        Route::controller(FrontendMobileController::class)->group(function () {
+
+            // FRONTEND
+
+
+
+            Route::post('/get_mobile_recents_depeches_and_flashes', 'get_mobile_recents_depeches_and_flashes');
+
+            // DEPECHE REQUEST
+            Route::get('/get_mobile_depeches',  'get_mobile_depeches');
+            Route::get('/get_mobile_depeche_details_by_slug/{item_slug}',  'get_mobile_depeche_details_by_slug');
             Route::get('/get_mobile_depeche_by_rubrique/{rubrique_id}',  'get_mobile_depeche_by_rubrique');
             Route::get('/get_mobile_depeche_by_customer_country/{country_id}',  'get_mobile_depeche_by_country');
-
             Route::get('/get_mobile_depeche_archives', 'get_mobile_depeche_archives');
             Route::get('/get_mobile_depeche_archives_data/{mounth}/{year}', 'get_mobile_depeche_archives_data');
 
+            // FLASHES REQUEST
             Route::get('/get_mobile_flashes', 'get_mobile_flashes');
             Route::get('/get_mobile_recents_flashes', 'get_mobile_recents_flashes');
             Route::get('/get_mobile_flashes_by_rubrique/{rubrique_id}', 'get_mobile_flashes_by_rubrique');
@@ -705,7 +755,7 @@ Route::group(
             Route::get('/get_mobile_flashes_archives', 'get_mobile_flashes_archives');
             Route::get('/get_mobile_flashes_archives_data/{mounth}/{year}', 'get_mobile_flashes_archives_data');
 
-
+            Route::get('/get_mobile_countries_list', 'get_mobile_countries_list');
 
 
             Route::get('/get_mobile_banner_728X90', 'get_mobile_banner_728X90');
@@ -713,9 +763,31 @@ Route::group(
             Route::get('/get_mobile_countries', 'get_mobile_countries');
             Route::get('/get_mobile_rubriques', 'get_mobile_rubriques');
 
+
+
+            Route::get('/get_mobile_forfait_abonnements', 'get_mobile_forfait_abonnements');
+
+            /// ABONNE MOBILE AND ABONNEMENTS
+
+            Route::post('/store_mobile_abonne_data', 'store_mobile_abonne_data');
+            Route::post('/store_mobile_abonnement_data', 'store_mobile_abonnement_data');
+
+            Route::get('/forfaits_list', 'forfaitsList');
+            Route::post('/add_user_abonnement', 'store_abonne_abonnements');
+            // Route::any('/notify', 'notify');
+
+            // Route pour obtenir les détails d'un abonnement via le code d'abonnement
+            Route::get('/abonnement/details/{abonnement_code}','getAbonnementDetails');
+
+            // Route pour obtenir les détails du dernier abonnement valide ou le plus récent pour l'utilisateur authentifié
+            Route::get('/get-current-abonnement', 'getLatestAbonnementDetails');
+
         });
     }
 );
 
+Route::any('/notify', [FrontendMobileController::class, 'notify']);
+
 
 // ===========================END FRONTEND DEPECHES ========================
+

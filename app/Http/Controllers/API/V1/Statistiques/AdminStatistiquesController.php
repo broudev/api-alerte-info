@@ -13,13 +13,12 @@ class AdminStatistiquesController extends Controller
     {
         try {
             $all_users = DB::table('administration_models')->count();
-            $all_abonnes = DB::table('abonnes_models')->count();
-            $all_abonnements = DB::table('abonnements_models')->count();
-
+            //$all_abonnes = DB::table('abonnes_models')->count();
+            $all_abonnements = DB::table('abonnements')->count();
 
             return [
                 'all_users' => $all_users,
-                'all_abonnes' => $all_abonnes,
+                //'all_abonnes' => $all_abonnes,
                 'all_abonnements' => $all_abonnements,
             ];
 

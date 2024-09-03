@@ -381,11 +381,11 @@ class ArticlesController extends Controller
                 return DB::table('articles_models')
                     ->join('rubriques_quoideneuf_models', 'articles_models.rubrique_id', '=', 'rubriques_quoideneuf_models.id')
                     ->join('genre_journalistique_models', 'articles_models.genre_id', '=', 'genre_journalistique_models.id')
-                    ->join('countries_models', 'articles_models.pays_id', '=', 'countries_models.id')
+                    //->join('countries_models', 'articles_models.pays_id', '=', 'countries_models.id')
                     ->select(
                         'rubriques_quoideneuf_models.rubrique',
-                        'countries_models.pays',
-                        'countries_models.flag',
+                        //'countries_models.pays',
+                        //'countries_models.flag',
                         'genre_journalistique_models.genre',
                         'articles_models.*'
                     )
@@ -739,7 +739,7 @@ class ArticlesController extends Controller
 
             $myArry = array($date_debut, $date_fin);
 
-
+            
 
             if (count($request->rubrique_id) == 0 && count($request->genre_id) == 0):
 
@@ -835,16 +835,16 @@ class ArticlesController extends Controller
     // DETAIL ARTICLE SUR QUOIDENEUF
 
     /**
-     *
-     *
-     *
+     * 
+     * 
+     * 
      public function detail_article_quoideneuf(Request $request)
      {
-
+ 
          //return $request->all();
          $visitor_ip = $request->ip();
          $news_slug = $request->slug;
-
+ 
          try {
              if (!isset($request->slug)) :
                  return response()->json(
@@ -855,19 +855,19 @@ class ArticlesController extends Controller
                      ]
                  );
              else :
-
+ 
                  $is_view = DB::table('views_models')->where('news_slug', $news_slug)
                      ->where('ip_address', $visitor_ip)
                      ->first();
-
+ 
                  if ($is_view == null) :
                      $new_view = new ViewsModels();
-
+ 
                      $new_view->news_slug = $news_slug;
                      $new_view->ip_address = $visitor_ip;
-
+ 
                      if ($new_view->save()) :
-
+ 
                          $views_counter = DB::table('views_models')
                              ->select(DB::raw('count(*) as news_counter, news_slug'))
                              ->where('news_slug', $news_slug)
@@ -877,10 +877,10 @@ class ArticlesController extends Controller
                          DB::table('articles_models')->where('slug', $news_slug)
                              ->update(['counter' => $views_counter->news_counter]);
                      endif;
-
-
+ 
+ 
                  endif;
-
+ 
                  $article = DB::table('articles_models')
                      ->join('rubriques_quoideneuf_models', 'articles_models.rubrique_id', '=', 'rubriques_quoideneuf_models.id')
                      ->join('genre_journalistique_models', 'articles_models.genre_id', '=', 'genre_journalistique_models.id')
@@ -889,20 +889,20 @@ class ArticlesController extends Controller
                          'rubriques_quoideneuf_models.rubrique',
                          'countries_models.pays',
                          'countries_models.flag',
-                         'genre_journalistique_models.genre',
+                         'genre_journalistique_models.genre', 
                          'articles_models.*'
                      )
                      ->where('articles_models.slug', $news_slug)->first();
-
+ 
                  $is_liked = DB::table('like_models')->where('news_slug', $news_slug)
                      ->where('ip_address', $visitor_ip)
                      ->first();
-
-
+ 
+ 
                  $is_disliked = DB::table('dislike_models')->where('news_slug', $news_slug)
                      ->where('ip_address', $visitor_ip)
                      ->first();
-
+ 
                  if ($is_liked != null) :
                      return [
                          'article_detail' => $article,
@@ -919,7 +919,7 @@ class ArticlesController extends Controller
                          'visitor_status' => "not_view"
                      ];
                  endif;
-
+ 
              endif;
          } catch (\Throwable $e) {
              return response()->json(
