@@ -903,6 +903,20 @@ class FrontendMobileController extends Controller
                             'payments' => 1,
                         ]);
                     }
+                    $solde = DB::table('solde_models')->first();
+
+
+                    if ($solde->solde == 0) {
+                        DB::table('solde_models')->update([
+                            'solde_models' => (int) $object_data->data['amount'],
+                            'slug' => CodeGenerator::generateSlugCode()
+                        ]);
+                    }else {
+                        DB::table('solde_models')->update([
+                            'solde' => (int) $solde->montants + (int) $object_data->data['amount'],
+                            'slug' => CodeGenerator::generateSlugCode()
+                        ]);
+                    }
 
                 }
 
