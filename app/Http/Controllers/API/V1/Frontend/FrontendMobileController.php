@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Models\Redactions\DepecheModels;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Redactions\CountriesModels;
+use App\Models\Transactions\TransactionsModels;
 use App\Models\AbonnesMobileModels\AbonnesMobileModels;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Models\AbonnementsMobileModels\AbonnementsMobileModels;
@@ -587,8 +588,8 @@ class FrontendMobileController extends Controller
             // Récupérer l'utilisateur authentifié
             $user = Auth::user();
 
-            if(!$user) {
-                      return response()->json([
+            if (!$user) {
+                return response()->json([
                     'code' => 302,
                     'status' => 'erreur',
                     'message' => "Veuillez vous authentifié"
@@ -598,15 +599,7 @@ class FrontendMobileController extends Controller
             $abonne = AbonnesMobileModels::where('user_id', $user->id)->first();
 
             $abonnement = AbonnementsMobileModels::where('abonne_id', $abonne->id)
-            ->first();
-
-            // if (empty($abonnement->id)) {
-            //     return response()->json([
-            //         'code' => 302,
-            //         'status' => 'erreur',
-            //         'message' => "Erreur! L'identifiant de l'abonné est obligatoire"
-            //     ]);
-            // }
+                ->first();
 
             if (empty($request->forfait_id)) {
                 return response()->json([
@@ -863,13 +856,44 @@ class FrontendMobileController extends Controller
         }
     }
 
+    public function check_payment_status($cinet_pay_config)
+    {
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://api-checkout.cinetpay.com/v2/payment/check',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => json_encode($cinet_pay_config, true),
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = curl_exec($curl);
+
+        $err = curl_error($curl);
+        curl_close($curl);
+        if ($err) {
+            echo $err;
+            //throw new Exception("Error :" . $err);
+        } else {
+            $res = json_encode($response, true);
+            return $response;
+        }
+    }
+
     public function notify(Request $request)
     {
         if (isset($request->cpm_trans_id)) {
 
             try {
-
-
                 $cinetpay_check = [
                     "apikey" => Marchand::get_apikey(),
                     "site_id" => $request->cpm_site_id,
@@ -880,49 +904,70 @@ class FrontendMobileController extends Controller
 
                 $object_data = (object) $data_decode;
 
+                // return response()->json([
+                //     'status' => 'erreur',
+                //     'code' => 400,
+                //     'message' => $object_data
+                // ], 404);
+
                 //$code = 627 // EHEC
                 //$code = 00 // SUCCESS
                 if ($object_data->code == '00') {
 
-                    $add_transaction = new Transaction();
-                    $add_transaction->transaction_id = $request->cpm_trans_id;
-                    $add_transaction->montant = $object_data->data['amount'];
-                    $add_transaction->operations = $object_data->data['description'];
-                    $add_transaction->method_payment = $object_data->data['payment_method'];
-                    $add_transaction->date_transaction = date('Y-m-d H:i:s', strtotime($object_data->data['payment_date']));
-                    $add_transaction->status = $object_data->data['status'];
-                    $add_transaction->save();
+                    $ifTransactionExist = TransactionsModels::where('transaction_id', $request->cpm_trans_id)->exists();
 
-                    // check if the transaction is for coupons article
+                    if ($ifTransactionExist == false) {
+                        $add_transaction = new TransactionsModels();
+                        $add_transaction->transaction_id = $request->cpm_trans_id;
+                        $add_transaction->montant = $object_data->data['amount'];
+                        $add_transaction->operations = $object_data->data['description'];
+                        $add_transaction->method_payment = $object_data->data['payment_method'];
+                        $add_transaction->date_transaction = date('Y-m-d H:i:s', strtotime($object_data->data['payment_date']));
+                        $add_transaction->status = $object_data->data['status'];
+                        $add_transaction->save();
 
-                    $is_abonnements = DB::table('abonnements_mobile_models')->where('transaction_code', $request->cpm_trans_id)->first();
+                        $is_abonnements = DB::table('abonnements_mobile_models')->where('abonnement_code', $request->cpm_trans_id)->first();
 
-                    if ($is_abonnements != null) {
-                        DB::table('abonnements_mobile_models')->where('abonnement_code', $request->cpm_trans_id)->update([
-                            'updated_at' => date('Y-m-d H:i:s', strtotime(now())),
-                            'payments' => 1,
-                        ]);
-                    }
-                    $solde = DB::table('solde_models')->first();
+                        if ($is_abonnements != null) {
+                            DB::table('abonnements_mobile_models')->where('abonnement_code', $request->cpm_trans_id)->update([
+                                'updated_at' => date('Y-m-d H:i:s', strtotime(now())),
+                                'payments' => 1,
+                            ]);
+                        }
+
+                        $solde = DB::table('solde_models')->orderByDesc('id')->first();
 
 
-                    if ($solde->solde == 0) {
-                        DB::table('solde_models')->update([
-                            'solde_models' => (int) $object_data->data['amount'],
-                            'slug' => CodeGenerator::generateSlugCode()
-                        ]);
-                    }else {
-                        DB::table('solde_models')->update([
-                            'solde' => (int) $solde->montants + (int) $object_data->data['amount'],
-                            'slug' => CodeGenerator::generateSlugCode()
-                        ]);
+                        if ($solde->montants == 0) {
+                            DB::table('solde_models')->update([
+                                'montants' => (int) $object_data->data['amount'],
+                                'slug' => CodeGenerator::generateSlugCode()
+                            ]);
+                        } else {
+                            DB::table('solde_models')->update([
+                                'montants' => (int) $solde->montants + (int) $object_data->data['amount'],
+                                'slug' => CodeGenerator::generateSlugCode()
+                            ]);
+                        }
+
+                          return response()->json([
+                                'status' => 'success',
+                                'code' => 200,
+                                'message' => $request->cpm_trans_id
+                            ], 404);
+                    } else {
+                        return response()->json([
+                            'status' => 'erreur',
+                            'code' => 400,
+                            'message' => "Cette transaction existe déja"
+                        ], 404);
                     }
 
                 }
 
                 if ($object_data->code == '627') {
 
-                    $add_transaction = new Transaction();
+                    $add_transaction = new TransactionsModels();
                     $add_transaction->transaction_id = $request->cpm_trans_id;
                     $add_transaction->montant = $object_data->data['amount'];
                     $add_transaction->operations = $object_data->data['description'];
@@ -933,7 +978,7 @@ class FrontendMobileController extends Controller
 
                 }
 
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 echo "Erreur :" . $e->getMessage();
             }
         } else {
@@ -943,86 +988,20 @@ class FrontendMobileController extends Controller
     }
 
 
-    public function getAbonnementDetails($abonnement_code)
+    public function getAbonnementDetails()
     {
         try {
             // Récupérer l'abonnement en utilisant le code d'abonnement et charger les relations
-            $abonnement = AbonnementsMobileModels::where('abonnement_code', $abonnement_code)
+            $abonnement = AbonnementsMobileModels::where('user_id', Auth::user()->id)
                 ->with(['forfait', 'abonne'])  // Charger les relations forfait et abonné
                 ->first();
+
 
             if (!$abonnement) {
                 return response()->json([
                     'status' => 'erreur',
                     'code' => 404,
                     'message' => 'Abonnement non trouvé'
-                ], 404);
-            }
-
-            // Récupérer les IDs des pays liés à l'abonnement
-            $pays_ids = explode(',', $abonnement->abonne_country_id);
-
-            // Récupérer les noms des pays à partir des IDs
-            $pays = CountriesModels::whereIn('id', $pays_ids)->get();
-
-            // Calculer si l'abonnement est toujours valide
-            $isValid = now()->between($abonnement->date_debut, $abonnement->date_fin);
-
-            // Retourner les informations de l'abonnement
-            return response()->json([
-                'status' => 'succès',
-                'code' => 200,
-                'abonnement' => [
-                    'abonnement_code' => $abonnement->abonnement_code,
-                    'date_debut' => $abonnement->date_debut,
-                    'date_fin' => $abonnement->date_fin,
-                    'montant_abonnements' => $abonnement->montant_abonnements,
-                    'forfait' => $abonnement->forfait,  // Détails du forfait
-                    'countries' => $pays,  // Liste des pays
-                    'countriesId' => $pays_ids,  // Liste des IDs des pays
-                    'isValid' => $isValid,  // Statut de validité de l'abonnement
-                    'abonne' => $abonnement->abonne  // Détails de l'abonné
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'erreur',
-                'code' => 500,
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function getLatestAbonnementDetails()
-    {
-        try {
-            // Récupérer l'utilisateur authentifié
-            $user = Auth::user();
-
-            $abonne = AbonnesMobileModels::where('user_id', $user->id)->first();
-
-
-            // Chercher d'abord un abonnement valide
-            $abonnement = AbonnementsMobileModels::where('abonne_id', $abonne->id)
-                ->where('date_fin', '>=', now())  // Filtrer les abonnements valides
-                ->with(['forfait', 'abonne'])  // Charger les relations forfait et abonné
-                ->orderBy('date_fin', 'desc')  // Trier par date de fin (le plus proche en premier)
-                ->first();
-
-            // Si aucun abonnement valide n'est trouvé, récupérer le dernier abonnement (non valide)
-            if (!$abonnement) {
-                $abonnement = AbonnementsMobileModels::where('abonne_id', $abonne->id)
-                    ->with(['forfait', 'abonne'])  // Charger les relations forfait et abonné
-                    ->orderBy('created_at', 'desc')  // Trier par date de création (dernier en premier)
-                    ->first();
-            }
-
-            if (!$abonnement) {
-                return response()->json([
-                    'status' => 'erreur',
-                    'code' => 404,
-                    'message' => 'Aucun abonnement trouvé pour cet utilisateur'
                 ], 404);
             }
 
@@ -1060,6 +1039,103 @@ class FrontendMobileController extends Controller
             ], 500);
         }
     }
+
+    public function getLatestAbonnementDetails()
+{
+    try {
+        // Récupérer l'utilisateur authentifié
+        $user = Auth::user();
+
+        // Vérifier si l'utilisateur est abonné
+        $abonne = AbonnesMobileModels::where('user_id', $user->id)->first();
+
+        if (!$abonne) {
+            return response()->json([
+                'status' => 'erreur',
+                'code' => 404,
+                'message' => 'Aucun abonnement trouvé pour cet utilisateur'
+            ], 404);
+        }
+
+        // Récupérer tous les abonnements valides
+        $abonnements = AbonnementsMobileModels::where('abonne_id', $abonne->id)
+            ->where('date_fin', '>=', now())  // Filtrer les abonnements valides
+            ->where('payments', 1)
+            ->with(['forfait', 'abonne'])  // Charger les relations forfait et abonné
+            ->orderBy('date_fin', 'desc')  // Trier par date de fin (le plus proche en premier)
+            ->get();
+
+        // Si aucun abonnement valide n'est trouvé
+        if ($abonnements->isEmpty()) {
+            return response()->json([
+                'status' => 'erreur',
+                'code' => 404,
+                'message' => 'Aucun abonnement valide trouvé pour cet utilisateur'
+            ], 404);
+        }
+
+        // Calculer le nombre total de jours restants
+        $totalJoursRestants = $abonnements->sum(function($abonnement) {
+            return now()->diffInDays($abonnement->date_fin);
+        });
+
+        // Préparer une liste de pays avec abonnements valides
+        $paysValides = [];
+
+        // Préparer les abonnements valides avec les informations nécessaires
+        $validAbonnements = $abonnements->map(function($abonnement) use (&$paysValides) {
+            // Récupérer les IDs des pays liés à l'abonnement
+            $pays_ids = explode(',', $abonnement->abonne_country_id);
+
+            // Récupérer les noms des pays à partir des IDs
+            $pays = CountriesModels::whereIn('id', $pays_ids)->get();
+
+            // Ajouter les pays valides
+            foreach ($pays as $paysData) {
+                $paysValides[$paysData->id] = $paysData->pays; // Éviter les doublons en utilisant l'ID du pays comme clé
+            }
+
+            // Calculer si l'abonnement est toujours valide
+            $isValid = now()->between($abonnement->date_debut, $abonnement->date_fin);
+
+            return [
+                'abonnement_code' => $abonnement->abonnement_code,
+                'date_debut' => $abonnement->date_debut,
+                'date_fin' => $abonnement->date_fin,
+                'montant_abonnements' => $abonnement->montant_abonnements,
+                'forfait' => $abonnement->forfait,  // Détails du forfait
+                'countries' => $pays,  // Liste des pays
+                'countriesId' => $pays_ids,  // Liste des IDs des pays
+                'isValid' => $isValid,  // Statut de validité de l'abonnement
+                'abonne' => $abonnement->abonne  // Détails de l'abonné
+            ];
+        });
+
+        // Résumé des abonnements valides
+        $abonnementResume = [
+            'nombre_abonnements_valides' => $abonnements->count(),
+            'jours_restants_total' => $totalJoursRestants,  // Nombre total de jours restants
+            'pays_valides' => array_values($paysValides)  // Liste des pays où les abonnements sont valides (sans doublons)
+        ];
+
+        // Retourner la réponse avec le résumé et les abonnements valides
+        return response()->json([
+            'status' => 'succès',
+            'code' => 200,
+            'resume_abonnement' => $abonnementResume,  // Résumé des abonnements
+            'valid_abonnements' => $validAbonnements  // Liste des abonnements valides
+        ]);
+
+    } catch (Exception $e) {
+        return response()->json([
+            'status' => 'erreur',
+            'code' => 500,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
+
+
 
 
 }

@@ -788,6 +788,16 @@ Route::group(
 
 Route::any('/notify', [FrontendMobileController::class, 'notify']);
 
+Route::get('/contact-info', function () {
+    return response()->json([
+        'phone' => '+225 01 02 500 320 / +225 07 09 62 06 06',
+        'whatsapp' => '+225 01 02 500 320',
+        'email' => 'direction@alerte-info.net',
+        'facebook' => 'https://web.facebook.com/ALERTEINFOCIV'
+    ]);
+});
+
+
 
 // ===========================END FRONTEND DEPECHES ========================
 
